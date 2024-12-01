@@ -6,7 +6,7 @@ pipeline {
        }        
        environment { 
                  DOCKER_HUB_REPO= 'shubhamsahu22/compelete-cicd-01'
-           
+                 JOB_NAME_NOW= 'cicd01'
         }      
             stages {
               stage('gitgub') { 
@@ -24,11 +24,15 @@ pipeline {
               stage('docker') {
                   steps { 
                       script { 
-                             docker.build("${DOCKER_HUB_REPO}:latest") 
+                             docker.build("${JOB_NAME_NOW}:latest") 
                          }
                   }
                }
-
+             stage('trivy scan') { 
+                     steps { 
+                           sh  'trivy --severity HIGH,CRITICAL --no-progress --format table -o trivy-report.html image ${JOB_NAME_NOW}:latest'
+                       }
+             }
           }
 
 
