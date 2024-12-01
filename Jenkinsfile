@@ -3,7 +3,11 @@ pipeline {
        agent any
         tools { 
         nodejs 'NodeJS'
-       }              
+       }        
+       environment { 
+                 DOCKER_HUB_REPO= 'shubhamsahu22/compelete-cicd-01'
+           
+        }      
             stages {
               stage('gitgub') { 
                   steps  {
@@ -17,6 +21,14 @@ pipeline {
                        sh 'npm install' 
                   }
               }
+              stage('docker') {
+                  steps { 
+                      script { 
+                             docker.build("${DOCKER_HUB_REPO}:latest") 
+                         }
+                  }
+               }
+
           }
 
 
