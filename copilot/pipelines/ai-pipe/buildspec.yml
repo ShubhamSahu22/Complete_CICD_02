@@ -5,7 +5,7 @@ phases:
     commands:
       - echo "cd into $CODEBUILD_SRC_DIR"
       - cd $CODEBUILD_SRC_DIR
-      # Download the copilot linux binary.
+      # Download the Copilot Linux binary.
       - wget -q https://ecs-cli-v2-release.s3.amazonaws.com/copilot-linux-v1.34.0 -O copilot-linux
       - chmod +x ./copilot-linux
       # Install Checkov
@@ -14,13 +14,14 @@ phases:
   build:
     commands:
       - echo "Run your tests"
+      # Uncomment this if you want to run tests in your pipeline.
       # - make test
       # Scan CloudFormation templates using Checkov
       - echo "Running Checkov on CloudFormation templates"
-      - checkov -d .aws/copilot
+      - checkov -d .aws/copilot || exit 1  # Make the pipeline fail if Checkov fails
       # Scan Dockerfile using Checkov
       - echo "Running Checkov on Dockerfile"
-      - checkov -f Dockerfile
+      - checkov -f Dockerfile || exit 1  # Ensure failure if Dockerfile check fails
 
   post_build:
     commands:
@@ -50,22 +51,23 @@ phases:
           exit 1;
         fi
       # Generate the cloudformation templates.
+      # The tag is the build ID but we replaced the colon ':' with a dash '-'.
       - >
         for env in $pl_envs; do
           tag=$(echo ${CODEBUILD_BUILD_ID##*:}-$env | sed 's/:/-/g' | rev | cut -c 1-128 | rev)
           for svc in $svcs; do
-          ./copilot-linux svc package -n $svc -e $env --output-dir './infrastructure' --tag $tag --upload-assets;
-          if [ $? -ne 0 ]; then
-            echo "Cloudformation stack and config files were not generated. Please check build logs to see if there was a manifest validation error." 1>&2;
-            exit 1;
-          fi
+            ./copilot-linux svc package -n $svc -e $env --output-dir './infrastructure' --tag $tag --upload-assets;
+            if [ $? -ne 0 ]; then
+              echo "Cloudformation stack and config files were not generated. Please check build logs to see if there was a manifest validation error." 1>&2;
+              exit 1;
+            fi
           done;
           for job in $jobs; do
-          ./copilot-linux job package -n $job -e $env --output-dir './infrastructure' --tag $tag --upload-assets;
-          if [ $? -ne 0 ]; then
-            echo "Cloudformation stack and config files were not generated. Please check build logs to see if there was a manifest validation error." 1>&2;
-            exit 1;
-          fi
+            ./copilot-linux job package -n $job -e $env --output-dir './infrastructure' --tag $tag --upload-assets;
+            if [ $? -ne 0 ]; then
+              echo "Cloudformation stack and config files were not generated. Please check build logs to see if there was a manifest validation error." 1>&2;
+              exit 1;
+            fi
           done;
         done;
       - ls -lah ./infrastructure
